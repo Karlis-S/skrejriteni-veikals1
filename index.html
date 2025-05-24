@@ -2,26 +2,101 @@
 <html lang="lv">
 <head>
 <meta charset="UTF-8" />
-<title>Skrejriteņu veikals</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elektrisko skrejriteņu veikals</title>
 <style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; }
-  label { display: block; margin: 10px 0 5px; }
-  input[type=number], input[type=text] { width: 100%; padding: 8px; box-sizing: border-box; }
-  button { margin-top: 15px; padding: 10px 20px; cursor: pointer; }
-  #message { margin-top: 15px; font-weight: bold; }
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: 30px auto;
+    background: #fff;
+    padding: 20px 30px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #333;
+  }
+  label {
+    display: block;
+    margin: 15px 0 6px;
+    font-weight: bold;
+    color: #444;
+  }
+  input[type=number], input[type=text] {
+    width: 100%;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 15px;
+    transition: border-color 0.3s;
+  }
+  input[type=number]:focus, input[type=text]:focus {
+    border-color: #007bff;
+    outline: none;
+  }
+  button {
+    margin-top: 25px;
+    padding: 12px 25px;
+    width: 100%;
+    font-size: 16px;
+    background: #007bff;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  #message {
+    margin-top: 20px;
+    font-weight: 600;
+    text-align: center;
+    color: green;
+  }
+  #message.error {
+    color: red;
+  }
+  .product-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .product-name {
+    font-weight: 600;
+    color: #222;
+  }
+  .product-price {
+    color: #555;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
 
 <h1>Elektrisko skrejriteņu veikals</h1>
 
-<label>Skrejritenis Modelis A (300 EUR):</label>
-<input type="number" id="qtyA" min="0" value="0" />
+<div class="product-row">
+  <div>
+    <label for="qtyA" class="product-name">Skrejritenis Modelis A</label>
+    <div class="product-price">Cena: 300 EUR</div>
+  </div>
+  <input type="number" id="qtyA" min="0" value="0" />
+</div>
 
-<label>Skrejritenis Modelis B (450 EUR):</label>
-<input type="number" id="qtyB" min="0" value="0" />
+<div class="product-row">
+  <div>
+    <label for="qtyB" class="product-name">Skrejritenis Modelis B</label>
+    <div class="product-price">Cena: 450 EUR</div>
+  </div>
+  <input type="number" id="qtyB" min="0" value="0" />
+</div>
 
-<label>Klienta vārds:</label>
+<label for="clientName">Klienta vārds:</label>
 <input type="text" id="clientName" placeholder="Ievadi savu vārdu" />
 
 <button onclick="placeOrder()">Pasūtīt</button>
@@ -29,7 +104,21 @@
 <div id="message"></div>
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwLrpDT-2t1WVzH-DhjeUtGcfhjPK3zpUPZC5aujoZTy5Z357NCuA_EJQOTsJRK5P5LHQ/exec';
+  const AIRTABLE_API_KEY = 'patt7LBTzotZwxoHK';   // <-- Šeit ievieto savu API atslēgu
+  const BASE_ID = 'appjcReedaJEt5jVR';             // <-- Šeit ievieto savu Base ID
+  const TABLE_NAME = 'appjcReedaJEt5jVR'; // <-- Tabulas nosaukums Airtable
+
+  function showMessage(msg, isError = false) {
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = msg;
+    messageDiv.className = isError ? 'error' : '';
+  }
+
+  function clearForm() {
+    document.getElementById('qtyA').value = '0';
+    document.getElementById('qtyB').value = '0';
+    document.getElementById('clientName').value = '';
+  }
 
   function placeOrder() {
     const qtyA = parseInt(document.getElementById('qtyA').value) || 0;
@@ -37,12 +126,12 @@
     const client = document.getElementById('clientName').value.trim();
 
     if (client === '') {
-      showMessage('Lūdzu, ievadi savu vārdu!');
+      showMessage('Lūdzu, ievadi savu vārdu!', true);
       return;
     }
 
     if (qtyA === 0 && qtyB === 0) {
-      showMessage('Lūdzu, izvēlies vismaz vienu skrejriteni!');
+      showMessage('Lūdzu, izvēlies vismaz vienu skrejriteni!', true);
       return;
     }
 
@@ -52,39 +141,40 @@
 
     const total = products.reduce((sum, p) => sum + p.qty * p.price, 0);
 
-    const orderData = {
-      products,
-      total,
-      client
-    };
+    // Sūta katru produktu kā atsevišķu ierakstu uz Airtable (var mainīt pēc vajadzības)
+    let promises = products.map(product => {
+      const data = {
+        fields: {
+          Client: client,
+          Product: product.name,
+          Quantity: product.qty,
+          Price: product.price,
+          Total: product.qty * product.price,
+          OrderDate: new Date().toISOString().split('T')[0] // tikai datums YYYY-MM-DD
+        }
+      };
 
-    fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(orderData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.result === 'success') {
-        showMessage('Pasūtījums veiksmīgi nosūtīts! Paldies, ' + client + '!');
-        clearForm();
-      } else {
-        showMessage('Kļūda pasūtījuma nosūtīšanā: ' + data.message);
-      }
-    })
-    .catch(err => {
-      showMessage('Neizdevās nosūtīt pasūtījumu. Kļūda: ' + err.message);
+      return fetch(`https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }).then(res => {
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+        return res.json();
+      });
     });
-  }
 
-  function showMessage(msg) {
-    document.getElementById('message').textContent = msg;
-  }
-
-  function clearForm() {
-    document.getElementById('qtyA').value = '0';
-    document.getElementById('qtyB').value = '0';
-    document.getElementById('clientName').value = '';
+    Promise.all(promises)
+      .then(results => {
+        showMessage(`Pasūtījums veiksmīgi nosūtīts! Paldies, ${client}!`);
+        clearForm();
+      })
+      .catch(err => {
+        showMessage('Kļūda pasūtījuma nosūtīšanā: ' + err.message, true);
+      });
   }
 </script>
 
